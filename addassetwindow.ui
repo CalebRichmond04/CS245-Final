@@ -18,8 +18,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>501</width>
-     <height>411</height>
+     <width>711</width>
+     <height>461</height>
     </rect>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -33,8 +33,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>497</width>
-         <height>385</height>
+         <width>707</width>
+         <height>435</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -51,8 +51,6 @@
           </property>
          </widget>
         </item>
-
-        <!-- Asset ID -->
         <item>
          <widget class="QLabel" name="AssetIdLabel">
           <property name="font">
@@ -68,8 +66,6 @@
         <item>
          <widget class="QLineEdit" name="AssetIdData"/>
         </item>
-
-        <!-- Category ID -->
         <item>
          <widget class="QLabel" name="CategoryIdLabel">
           <property name="font">
@@ -85,8 +81,6 @@
         <item>
          <widget class="QLineEdit" name="CategoryIdData"/>
         </item>
-
-        <!-- Name -->
         <item>
          <widget class="QLabel" name="NameLabel">
           <property name="font">
@@ -102,8 +96,6 @@
         <item>
          <widget class="QLineEdit" name="NameData"/>
         </item>
-
-        <!-- Tag -->
         <item>
          <widget class="QLabel" name="TagLabel">
           <property name="font">
@@ -119,8 +111,6 @@
         <item>
          <widget class="QLineEdit" name="TagData"/>
         </item>
-
-        <!-- Description -->
         <item>
          <widget class="QLabel" name="DescriptionLabel">
           <property name="font">
@@ -136,8 +126,6 @@
         <item>
          <widget class="QLineEdit" name="DescriptionData"/>
         </item>
-
-        <!-- Location -->
         <item>
          <widget class="QLabel" name="LocationLabel">
           <property name="font">
@@ -153,8 +141,6 @@
         <item>
          <widget class="QLineEdit" name="LocationData"/>
         </item>
-
-        <!-- Original Cost -->
         <item>
          <widget class="QLabel" name="OriginalCostLabel">
           <property name="font">
@@ -170,13 +156,10 @@
         <item>
          <widget class="QLineEdit" name="OriginalCostData"/>
         </item>
-
        </layout>
       </widget>
      </widget>
     </item>
-
-    <!-- Add Button -->
     <item>
      <widget class="QPushButton" name="AddButton">
       <property name="text">
@@ -186,7 +169,6 @@
     </item>
    </layout>
   </widget>
-
   <widget class="QStatusBar" name="statusbar">
    <property name="geometry">
     <rect>
@@ -197,7 +179,6 @@
     </rect>
    </property>
   </widget>
-
  </widget>
  <resources/>
  <connections/>
