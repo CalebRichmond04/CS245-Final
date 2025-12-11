@@ -26,6 +26,9 @@ public:
     string getLocation() const;
     string getOriginalCost() const;
 
+private slots:
+    void on_categoryBox_activated(int index);
+
 private:
     Ui::AddAssetWindow *ui;
 };

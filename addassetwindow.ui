@@ -52,21 +52,6 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="AssetIdLabel">
-          <property name="font">
-           <font>
-            <bold>true</bold>
-           </font>
-          </property>
-          <property name="text">
-           <string>Asset ID: </string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="AssetIdData"/>
-        </item>
-        <item>
          <widget class="QLabel" name="CategoryIdLabel">
           <property name="font">
            <font>
@@ -79,7 +64,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QLineEdit" name="CategoryIdData"/>
+         <widget class="QComboBox" name="categoryBox"/>
         </item>
         <item>
          <widget class="QLabel" name="NameLabel">

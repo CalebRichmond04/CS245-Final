@@ -3,7 +3,7 @@
 
 #include <QMainWindow>
 #include "assettablemodel.h"  // Include your asset table model
-#include <QItemSelection> // ADDED
+#include <QItemSelection>     // For selection handling
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -24,10 +24,17 @@ private slots:
     void on_deleteAssetButton_clicked();  // Slot for deleting an asset
     void enableDropAssetButton(const QItemSelection &selected,
                                const QItemSelection &deselected); // Enable/disable delete button
+    void on_categoryBox_activated(int index); // Category selection change
+
+    void showFullDescription(const QModelIndex &index);; //Show a popup dialog with the full description or location text
+    void populateCategoryBox(); // Populates the category dropdown from the database
+
 
 private:
     Ui::MainWindow *ui;
-    AssetTableModel *model;               // Model for the asset table
+    AssetTableModel *model; // Model for the asset table
+
 };
 
 #endif // MAINWINDOW_H
+

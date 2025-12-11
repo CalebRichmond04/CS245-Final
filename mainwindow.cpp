@@ -1,8 +1,17 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "addassetwindow.h"
+#include <QtSql/QSqlDatabase>
+#include <QtSql/QSqlQuery>
+#include <QtSql/QSqlError>
+#include <QDebug>
 #include <QMessageBox>
+#include <QString>
 #include <QHeaderView>
+#include <iostream>
+#include <ostream>
+#include <string>
+using std::string;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -24,24 +33,26 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->assetTable->resizeColumnsToContents();
 
     // Set the table view's selection listener
-    connect(
-        ui->assetTable->selectionModel(),
-        &QItemSelectionModel::selectionChanged,
-        this,
-        &MainWindow::enableDropAssetButton
-        );
+    connect(ui->assetTable->selectionModel(),
+            &QItemSelectionModel::selectionChanged,
+            this,
+            &MainWindow::enableDropAssetButton);
+
+    // Connect to show full description when double clicked
+    connect(ui->assetTable, &QTableView::doubleClicked, this, &MainWindow::showFullDescription);
+
+    // Populate the category combo box
+    populateCategoryBox();
 }
 
 MainWindow::~MainWindow()
 {
-    // Delete the model and UI
     delete model;
     delete ui;
 }
 
 /*
- * Placeholder: Add Asset button clicked
- * This will eventually open the AddAssetDialog
+ * Add Asset button clicked
  */
 void MainWindow::on_addAssetButton_clicked()
 {
@@ -65,15 +76,13 @@ void MainWindow::on_addAssetButton_clicked()
 }
 
 /*
- * Deletes the selected Asset with the end user's confirmation.
+ * Deletes the selected Asset with the end user's confirmation
  */
 void MainWindow::on_deleteAssetButton_clicked()
 {
-    // Get selected row
     QModelIndex index = ui->assetTable->selectionModel()->currentIndex();
     int row = index.row();
 
-    // Confirm deletion
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(
         this,
@@ -84,17 +93,13 @@ void MainWindow::on_deleteAssetButton_clicked()
 
     if (reply == QMessageBox::Yes)
     {
-        // Delete the asset in the model
         model->deleteAsset(row);
-
-        // Clear any selection in the table
         ui->assetTable->selectionModel()->clearSelection();
     }
 }
 
 /*
  * Enables the "Delete Asset" button when an asset is selected
- * and disables it when no asset is selected.
  */
 void MainWindow::enableDropAssetButton(const QItemSelection &selected,
                                        const QItemSelection &deselected)
@@ -106,13 +111,74 @@ void MainWindow::enableDropAssetButton(const QItemSelection &selected,
 
 
 
+void MainWindow::populateCategoryBox()
+{
+    ui->categoryBox->clear(); // Clear any existing items
 
-//REMEBER TO ADD THINGS LIKE SORT BY CATEGORY EITHER IN A BUTTON THAT UPDATES THE TABLEMODLE AT
-//^AT THE BOTTUM OF THE MODULES THERE IS HELP DOCUEMNTS THAT DOES THIS
-//REMEBER TO HAVE A BASIC PASSWORD ENTER WINDOW POP UP THAT OPENS THAT LETS THE MAIN WINDOW IN
+    // Create a database connection object
+    QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
+    db.setDatabaseName(
+        "DRIVER={SQL Server};"
+        "Server=itassetmanagerserver.database.windows.net;"
+        "Database=IT_AssetManager;"
+        "Uid=cs245;"
+        "Port=1433;"
+        "Pwd=Thomas123;"
+        "encrypt=true;"
+        "trustServerCertificate=false;"
+        "hostNameInCertificate=*.database.windows.net;"
+        "loginTimeout=30;"
+        );
+
+    if (!db.open()) {
+        std::cout << "Database connection failed: "
+                  << db.lastError().text().toStdString() << std::endl;
+        return;
+    }
+
+    // Query categories
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+
+    if (!query.exec("SELECT Name FROM Category_Table")) {
+        std::cout << "Category query failed: "
+                  << query.lastError().text().toStdString() << std::endl;
+        db.close();
+        return;
+    }
+
+    // Populate the combo box
+    while (query.next()) {
+        QString categoryName = query.value(0).toString();
+        ui->categoryBox->addItem(categoryName);
+    }
+    db.close();
+}
 
 
 
+/*
+ * Handles category selection changes
+ */
+void MainWindow::on_categoryBox_activated(int index)
+{
+    // TODO: Implement filtering by category if desired
+}
 
 
 
+/*
+ * Shows a popup with the full description when the Description column is clicked
+ */
+void MainWindow::showFullDescription(const QModelIndex &index)
+{
+    int row = index.row();
+    int col = index.column();
+
+    // Only trigger for Description
+    if(col == 4) {
+        string fullDesc = model->getAsset(row).getDescription();
+        QMessageBox::information(this, "Full Description",
+                                 QString::fromStdString(fullDesc));
+    }
+}

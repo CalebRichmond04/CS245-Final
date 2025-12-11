@@ -26,6 +26,8 @@ public:
     // Modifiers
     void addAsset(const Asset &asset);   // add a new asset
     void deleteAsset(int index);         // delete an asset by row index
+    void loadAssetsFromDatabase();  // Load assets from SQL into the model
+    Asset getAsset(int row) const; // used for the displaydescription function so it can display the full descirption by returning its asset row
 };
 
 #endif // ASSETTABLEMODEL_H
