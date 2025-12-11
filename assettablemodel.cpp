@@ -12,17 +12,13 @@
 using std::vector;
 using std::string;
 
-
-
+// Constructor
 AssetTableModel::AssetTableModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
-    // Load assets from the database automatically
+    // Automatically load assets from the database on creation
     loadAssetsFromDatabase();
 }
-
-
-
 
 
 /*
@@ -48,8 +44,6 @@ QVariant AssetTableModel::headerData(int section, Qt::Orientation orientation, i
 }
 
 
-
-
 /*
  * Number of rows = number of assets
  */
@@ -59,8 +53,6 @@ int AssetTableModel::rowCount(const QModelIndex &parent) const
 }
 
 
-
-
 /*
  * Number of columns = 7
  */
@@ -68,8 +60,6 @@ int AssetTableModel::columnCount(const QModelIndex &parent) const
 {
     return 7;
 }
-
-
 
 
 /*
@@ -92,33 +82,17 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
         case 3: return QString::fromStdString(assets[row].getTag());
         case 4: return QString::fromStdString(assets[row].getDescription());
         case 5: return QString::fromStdString(assets[row].getLocation());
-        case 6: {
-            // Convert string to double
-            double cost = QString::fromStdString(assets[row].getOriginalCost()).toDouble();
-
-            // Format with $ and two decimals
-            return QString("$%1").arg(cost, 0, 'f', 2);
+        case 6:
+            {
+                // Format original cost with $ and two decimals
+                double cost = QString::fromStdString(assets[row].getOriginalCost()).toDouble();
+                return QString("$%1").arg(cost, 0, 'f', 2);
+            }
         }
-        }
-    }
-
-    // Optional: Bold the Name column as a placeholder for customization
-    if (role == Qt::FontRole && col == 2)
-    {
-        QFont boldFont;
-        boldFont.setBold(true);
-        return boldFont;
-    }
-
-    // Optional: color the Tag column white as a placeholder
-    if (role == Qt::ForegroundRole && col == 3)
-    {
-        return QBrush(QColor(255, 255, 255));
     }
 
     return QVariant();
 }
-
 
 
 /*
@@ -134,7 +108,6 @@ bool AssetTableModel::setData(const QModelIndex &idx, const QVariant &value, int
     }
     return false;
 }
-
 
 
 /*
@@ -171,15 +144,11 @@ void AssetTableModel::deleteAsset(int index)
 }
 
 
-// Returns the Asset object stored at the clicked row (this is used for the showFullDescription function in the mainwindow code
+// Returns the Asset object stored at the clicked row
 Asset AssetTableModel::getAsset(int row) const
 {
     return assets[row];
 }
-
-
-
-
 
 
 /*
@@ -187,7 +156,7 @@ Asset AssetTableModel::getAsset(int row) const
  */
 void AssetTableModel::loadAssetsFromDatabase()
 {
-    // Create a database connection object
+    // Connect to the database
     QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
     db.setDatabaseName(
         "DRIVER={SQL Server};"
@@ -208,8 +177,8 @@ void AssetTableModel::loadAssetsFromDatabase()
         return;
     }
 
-    // --- Load Categories ---
-    std::map<int, string> categoryMap;  // key = CategoryID, value = CategoryName
+    // Load categories into a map
+    std::map<int, string> categoryMap;
     QSqlQuery CategoryQuery(db);
     CategoryQuery.setForwardOnly(true);
 
@@ -224,7 +193,7 @@ void AssetTableModel::loadAssetsFromDatabase()
                   << CategoryQuery.lastError().text().toStdString() << std::endl;
     }
 
-    // --- Load Assets ---
+    // Load assets from database
     QSqlQuery query(db);
     query.setForwardOnly(true);
 
@@ -237,11 +206,10 @@ void AssetTableModel::loadAssetsFromDatabase()
     }
 
     while (query.next()) {
-        // Int fields
+        // Read fields from query
         int assetIdInt    = query.value(0).toInt();
-        int categoryIdInt = query.value(1).isNull() ? 0 : query.value(1).toInt(); // nullable
+        int categoryIdInt = query.value(1).isNull() ? 0 : query.value(1).toInt();
 
-        // String fields
         string tag          = query.value(2).toString().toStdString();
         string name         = query.value(3).toString().toStdString();
         string description  = query.value(4).isNull() ? "" : query.value(4).toString().toStdString();
@@ -259,4 +227,23 @@ void AssetTableModel::loadAssetsFromDatabase()
     }
 
     db.close();
+}
+
+
+/*
+ * Update the model with a new vector of assets
+ */
+void AssetTableModel::setModelData(std::vector<Asset> updatedAssets)
+{
+    // Clear old items
+    this->assets.clear();
+
+    // Copy new assets if vector is not empty
+    if (updatedAssets.size() > 0)
+    {
+        this->assets = updatedAssets;
+    }
+
+    // Refresh the view
+    this->setData(this->index(0,0), 0);
 }

@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // Resize the columns to fit their contents
     ui->assetTable->resizeColumnsToContents();
 
-    // Set the table view's selection listener
+    // Set the table view to enable/disable the delete button
     connect(ui->assetTable->selectionModel(),
             &QItemSelectionModel::selectionChanged,
             this,
@@ -61,6 +61,7 @@ void MainWindow::on_addAssetButton_clicked()
 
     if(dialog.exec() == QDialog::Accepted)
     {
+        // Create a new Asset object from the dialog input
         Asset newAsset(
             dialog.getAssetId(),
             dialog.getCategoryId(),
@@ -71,12 +72,14 @@ void MainWindow::on_addAssetButton_clicked()
             dialog.getOriginalCost()
             );
 
+        // Add it to the table model
         model->addAsset(newAsset);
     }
 }
 
 /*
- * Deletes the selected Asset with the end user's confirmation
+ * Deletes the selected Asset with confirmation window
+ * Also deletes the asset from the database
  */
 void MainWindow::on_deleteAssetButton_clicked()
 {
@@ -93,7 +96,52 @@ void MainWindow::on_deleteAssetButton_clicked()
 
     if (reply == QMessageBox::Yes)
     {
+        // Get the asset to delete from the model
+        Asset assetToDelete = model->getAsset(row);
+        std::string assetId = assetToDelete.getAssetId();
+
+        // Delete from database
+        // below connectes to the database
+        QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
+        db.setDatabaseName(
+            "DRIVER={SQL Server};"
+            "Server=itassetmanagerserver.database.windows.net;"
+            "Database=IT_AssetManager;"
+            "Uid=cs245;"
+            "Port=1433;"
+            "Pwd=Thomas123;"
+            "encrypt=true;"
+            "trustServerCertificate=false;"
+            "hostNameInCertificate=*.database.windows.net;"
+            "loginTimeout=30;"
+            );
+
+        if (!db.open()) {
+            QMessageBox::critical(this, "Database Error",
+                                  "Failed to connect to the database: " +
+                                      db.lastError().text());
+            return;
+        }
+
+        // Prepare DELETE query for the database
+        QSqlQuery query(db);
+        query.prepare("DELETE FROM Asset_Table WHERE AssetID = :id");
+        query.bindValue(":id", QString::fromStdString(assetId));
+
+        if (!query.exec()) {
+            QMessageBox::critical(this, "Database Error",
+                                  "Failed to delete asset: " +
+                                      query.lastError().text());
+            db.close();
+            return;
+        }
+
+        db.close();
+
+        // Delete asset from model to update the table view
         model->deleteAsset(row);
+
+        // Clear selection in table
         ui->assetTable->selectionModel()->clearSelection();
     }
 }
@@ -108,12 +156,13 @@ void MainWindow::enableDropAssetButton(const QItemSelection &selected,
     ui->deleteAssetButton->setEnabled(enabled);
 }
 
-
-
-
+// This code populates the category drop down with the database category names
 void MainWindow::populateCategoryBox()
 {
     ui->categoryBox->clear(); // Clear any existing items
+
+    // Add "All" as the first option
+    ui->categoryBox->addItem("All");
 
     // Create a database connection object
     QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
@@ -136,7 +185,7 @@ void MainWindow::populateCategoryBox()
         return;
     }
 
-    // Query categories
+    // Query categories from database
     QSqlQuery query(db);
     query.setForwardOnly(true);
 
@@ -147,7 +196,7 @@ void MainWindow::populateCategoryBox()
         return;
     }
 
-    // Populate the combo box
+    // Add categories to combo box
     while (query.next()) {
         QString categoryName = query.value(0).toString();
         ui->categoryBox->addItem(categoryName);
@@ -155,27 +204,98 @@ void MainWindow::populateCategoryBox()
     db.close();
 }
 
-
-
 /*
- * Handles category selection changes
+ * Calls the DB to get the most recent assets, then filters them based on the selected category
  */
 void MainWindow::on_categoryBox_activated(int index)
 {
-    // TODO: Implement filtering by category if desired
+    QString selectedCategory = ui->categoryBox->itemText(index);
+
+    // Database connection
+    QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
+    db.setDatabaseName(
+        "DRIVER={SQL Server};"
+        "Server=itassetmanagerserver.database.windows.net;"
+        "Database=IT_AssetManager;"
+        "Uid=cs245;"
+        "Port=1433;"
+        "Pwd=Thomas123;"
+        "encrypt=true;"
+        "trustServerCertificate=false;"
+        "hostNameInCertificate=*.database.windows.net;"
+        "loginTimeout=30;"
+        );
+
+    if (!db.open()) {
+        std::cout << "Database connection failed: "
+                  << db.lastError().text().toStdString() << std::endl;
+        return;
+    }
+
+    //Load Categories
+    std::map<int, std::string> categoryMap;  // key = CategoryID, value = CategoryName
+    QSqlQuery categoryQuery(db);
+    categoryQuery.setForwardOnly(true);
+
+    if (categoryQuery.exec("SELECT CategoryID, Name FROM Category_Table")) {
+        while (categoryQuery.next()) {
+            int id = categoryQuery.value(0).toInt();
+            std::string name = categoryQuery.value(1).toString().toStdString();
+            categoryMap[id] = name;
+        }
+    } else {
+        std::cout << "Category query failed: "
+                  << categoryQuery.lastError().text().toStdString() << std::endl;
+    }
+
+    //Load Assets
+    std::vector<Asset> filteredAssets;
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+
+    if (!query.exec(
+            "SELECT AssetID, CategoryID, Tag, Name, Description, Location, OrginalCost FROM Asset_Table")) {
+        std::cout << "Asset query failed: "
+                  << query.lastError().text().toStdString() << std::endl;
+        db.close();
+        return;
+    }
+
+    while (query.next()) {
+        int assetIdInt    = query.value(0).toInt();
+        int categoryIdInt = query.value(1).isNull() ? 0 : query.value(1).toInt();
+
+        std::string tag          = query.value(2).toString().toStdString();
+        std::string name         = query.value(3).toString().toStdString();
+        std::string description  = query.value(4).isNull() ? "" : query.value(4).toString().toStdString();
+        std::string location     = query.value(5).isNull() ? "" : query.value(5).toString().toStdString();
+        std::string orginnalCost = query.value(6).isNull() ? "" : query.value(6).toString().toStdString();
+
+        std::string assetIdStr = std::to_string(assetIdInt);
+        std::string categoryName = categoryMap.count(categoryIdInt) ? categoryMap[categoryIdInt] : "N/A";
+
+        // Include all assets if "All" is selected  if not filter by category
+        if (selectedCategory == "All" || categoryName == selectedCategory.toStdString()) {
+            Asset asset(assetIdStr, categoryName, name, tag, description, location, orginnalCost);
+            filteredAssets.push_back(asset);
+        }
+    }
+
+    // Call the setModelData in the assettablemodel code to update the table with the new fitlered vector
+    model->setModelData(filteredAssets);
+
+    db.close();
 }
 
-
-
 /*
- * Shows a popup with the full description when the Description column is clicked
+ * Shows a popup with the full description when the Description column is double clicked
  */
 void MainWindow::showFullDescription(const QModelIndex &index)
 {
     int row = index.row();
     int col = index.column();
 
-    // Only trigger for Description
+    // Only trigger for Description column (we can do this for any of them just change the col number and displayed text
     if(col == 4) {
         string fullDesc = model->getAsset(row).getDescription();
         QMessageBox::information(this, "Full Description",
