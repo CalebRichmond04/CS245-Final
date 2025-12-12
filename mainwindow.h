@@ -33,6 +33,8 @@ private slots:
 private:
     Ui::MainWindow *ui;
     AssetTableModel *model; // Model for the asset table
+    Database dbManager;     // manage DB connection
+
 
 };
 

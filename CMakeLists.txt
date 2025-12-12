@@ -27,6 +27,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         assettablemodel.h assettablemodel.cpp
         addassetwindow.h addassetwindow.cpp addassetwindow.ui
         logindialog.h logindialog.cpp logindialog.ui
+        database.h database.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET AssetManager_Final APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

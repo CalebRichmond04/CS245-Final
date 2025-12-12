@@ -1,16 +1,13 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "addassetwindow.h"
-#include <QtSql/QSqlDatabase>
+#include <QMessageBox>
+#include <QHeaderView>
 #include <QtSql/QSqlQuery>
 #include <QtSql/QSqlError>
-#include <QDebug>
-#include <QMessageBox>
-#include <QString>
-#include <QHeaderView>
 #include <iostream>
-#include <ostream>
-#include <string>
+#include <map>
+
 using std::string;
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -20,7 +17,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     // Create new asset model & apply it to the table view
-    model = new AssetTableModel(this);
+    model = new AssetTableModel(this); // AssetTableModel now uses centralized Database
     ui->assetTable->setModel(model);
 
     // Set the table view to allow the columns to expand
@@ -100,26 +97,11 @@ void MainWindow::on_deleteAssetButton_clicked()
         Asset assetToDelete = model->getAsset(row);
         std::string assetId = assetToDelete.getAssetId();
 
-        // Delete from database
-        // below connectes to the database
-        QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
-        db.setDatabaseName(
-            "DRIVER={SQL Server};"
-            "Server=itassetmanagerserver.database.windows.net;"
-            "Database=IT_AssetManager;"
-            "Uid=cs245;"
-            "Port=1433;"
-            "Pwd=Thomas123;"
-            "encrypt=true;"
-            "trustServerCertificate=false;"
-            "hostNameInCertificate=*.database.windows.net;"
-            "loginTimeout=30;"
-            );
+        // Use centralized Database connection
+        QSqlDatabase &db = dbManager.getConnection();
 
-        if (!db.open()) {
-            QMessageBox::critical(this, "Database Error",
-                                  "Failed to connect to the database: " +
-                                      db.lastError().text());
+        if (!db.isOpen()) {
+            QMessageBox::critical(this, "Database Error", "Failed to connect to the database");
             return;
         }
 
@@ -130,13 +112,9 @@ void MainWindow::on_deleteAssetButton_clicked()
 
         if (!query.exec()) {
             QMessageBox::critical(this, "Database Error",
-                                  "Failed to delete asset: " +
-                                      query.lastError().text());
-            db.close();
+                                  "Failed to delete asset: " + query.lastError().text());
             return;
         }
-
-        db.close();
 
         // Delete asset from model to update the table view
         model->deleteAsset(row);
@@ -156,7 +134,10 @@ void MainWindow::enableDropAssetButton(const QItemSelection &selected,
     ui->deleteAssetButton->setEnabled(enabled);
 }
 
-// This code populates the category drop down with the database category names
+
+/*
+ * This code populates the category drop down with the database category names
+ */
 void MainWindow::populateCategoryBox()
 {
     ui->categoryBox->clear(); // Clear any existing items
@@ -164,24 +145,10 @@ void MainWindow::populateCategoryBox()
     // Add "All" as the first option
     ui->categoryBox->addItem("All");
 
-    // Create a database connection object
-    QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
-    db.setDatabaseName(
-        "DRIVER={SQL Server};"
-        "Server=itassetmanagerserver.database.windows.net;"
-        "Database=IT_AssetManager;"
-        "Uid=cs245;"
-        "Port=1433;"
-        "Pwd=Thomas123;"
-        "encrypt=true;"
-        "trustServerCertificate=false;"
-        "hostNameInCertificate=*.database.windows.net;"
-        "loginTimeout=30;"
-        );
-
-    if (!db.open()) {
-        std::cout << "Database connection failed: "
-                  << db.lastError().text().toStdString() << std::endl;
+    // Use centralized Database class instead of creating a new connection
+    QSqlDatabase &db = dbManager.getConnection(); // dbManager is a member of MainWindow
+    if (!db.isOpen()) {
+        std::cerr << "Database connection failed\n";
         return;
     }
 
@@ -190,19 +157,26 @@ void MainWindow::populateCategoryBox()
     query.setForwardOnly(true);
 
     if (!query.exec("SELECT Name FROM Category_Table")) {
-        std::cout << "Category query failed: "
+        std::cerr << "Category query failed: "
                   << query.lastError().text().toStdString() << std::endl;
-        db.close();
         return;
     }
 
     // Add categories to combo box
     while (query.next()) {
         QString categoryName = query.value(0).toString();
-        ui->categoryBox->addItem(categoryName);
+        if (!categoryName.isEmpty()) {
+            ui->categoryBox->addItem(categoryName);
+        }
     }
-    db.close();
+
+    // No need to close the database: Database class manages the connection
 }
+
+
+
+
+
 
 /*
  * Calls the DB to get the most recent assets, then filters them based on the selected category
@@ -211,29 +185,15 @@ void MainWindow::on_categoryBox_activated(int index)
 {
     QString selectedCategory = ui->categoryBox->itemText(index);
 
-    // Database connection
-    QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
-    db.setDatabaseName(
-        "DRIVER={SQL Server};"
-        "Server=itassetmanagerserver.database.windows.net;"
-        "Database=IT_AssetManager;"
-        "Uid=cs245;"
-        "Port=1433;"
-        "Pwd=Thomas123;"
-        "encrypt=true;"
-        "trustServerCertificate=false;"
-        "hostNameInCertificate=*.database.windows.net;"
-        "loginTimeout=30;"
-        );
-
-    if (!db.open()) {
-        std::cout << "Database connection failed: "
-                  << db.lastError().text().toStdString() << std::endl;
+    // Use centralized Database connection
+    QSqlDatabase &db = dbManager.getConnection();
+    if (!db.isOpen()) {
+        std::cout << "Database not open\n";
         return;
     }
 
-    //Load Categories
-    std::map<int, std::string> categoryMap;  // key = CategoryID, value = CategoryName
+    // Load Categories into a map
+    std::map<int, std::string> categoryMap;
     QSqlQuery categoryQuery(db);
     categoryQuery.setForwardOnly(true);
 
@@ -248,21 +208,19 @@ void MainWindow::on_categoryBox_activated(int index)
                   << categoryQuery.lastError().text().toStdString() << std::endl;
     }
 
-    //Load Assets
+    // Load Assets and filter by category
     std::vector<Asset> filteredAssets;
     QSqlQuery query(db);
     query.setForwardOnly(true);
 
-    if (!query.exec(
-            "SELECT AssetID, CategoryID, Tag, Name, Description, Location, OrginalCost FROM Asset_Table")) {
+    if (!query.exec("SELECT AssetID, CategoryID, Tag, Name, Description, Location, OrginalCost FROM Asset_Table")) {
         std::cout << "Asset query failed: "
                   << query.lastError().text().toStdString() << std::endl;
-        db.close();
         return;
     }
 
     while (query.next()) {
-        int assetIdInt    = query.value(0).toInt();
+        int assetIdInt = query.value(0).toInt();
         int categoryIdInt = query.value(1).isNull() ? 0 : query.value(1).toInt();
 
         std::string tag          = query.value(2).toString().toStdString();
@@ -274,17 +232,15 @@ void MainWindow::on_categoryBox_activated(int index)
         std::string assetIdStr = std::to_string(assetIdInt);
         std::string categoryName = categoryMap.count(categoryIdInt) ? categoryMap[categoryIdInt] : "N/A";
 
-        // Include all assets if "All" is selected  if not filter by category
+        // Include all assets if "All" is selected; if not, filter by category
         if (selectedCategory == "All" || categoryName == selectedCategory.toStdString()) {
             Asset asset(assetIdStr, categoryName, name, tag, description, location, orginnalCost);
             filteredAssets.push_back(asset);
         }
     }
 
-    // Call the setModelData in the assettablemodel code to update the table with the new fitlered vector
+    // Update the model
     model->setModelData(filteredAssets);
-
-    db.close();
 }
 
 /*
@@ -295,7 +251,7 @@ void MainWindow::showFullDescription(const QModelIndex &index)
     int row = index.row();
     int col = index.column();
 
-    // Only trigger for Description column (we can do this for any of them just change the col number and displayed text
+    // Only trigger for Description column
     if(col == 4) {
         string fullDesc = model->getAsset(row).getDescription();
         QMessageBox::information(this, "Full Description",

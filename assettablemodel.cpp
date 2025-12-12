@@ -1,11 +1,8 @@
-#include <QBrush>
-#include <QColor>
-#include <QFont>
-#include <QtSql/QSqlDatabase>
-#include <QtSql/QSqlQuery>
-#include <QtSql/QSqlError>
 #include "assettablemodel.h"
 #include "asset.h"
+#include <QtSql/QSqlQuery>
+#include <QtSql/QSqlError>
+#include <QVariant>
 #include <iostream>
 #include <map>
 
@@ -16,7 +13,7 @@ using std::string;
 AssetTableModel::AssetTableModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
-    // Automatically load assets from the database on creation
+    // Automatically load assets from the centralized Database
     loadAssetsFromDatabase();
 }
 
@@ -83,11 +80,11 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
         case 4: return QString::fromStdString(assets[row].getDescription());
         case 5: return QString::fromStdString(assets[row].getLocation());
         case 6:
-            {
-                // Format original cost with $ and two decimals
-                double cost = QString::fromStdString(assets[row].getOriginalCost()).toDouble();
-                return QString("$%1").arg(cost, 0, 'f', 2);
-            }
+        {
+            // Format original cost with $ and two decimals
+            double cost = QString::fromStdString(assets[row].getOriginalCost()).toDouble();
+            return QString("$%1").arg(cost, 0, 'f', 2);
+        }
         }
     }
 
@@ -156,24 +153,10 @@ Asset AssetTableModel::getAsset(int row) const
  */
 void AssetTableModel::loadAssetsFromDatabase()
 {
-    // Connect to the database
-    QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
-    db.setDatabaseName(
-        "DRIVER={SQL Server};"
-        "Server=itassetmanagerserver.database.windows.net;"
-        "Database=IT_AssetManager;"
-        "Uid=cs245;"
-        "Port=1433;"
-        "Pwd=Thomas123;"
-        "encrypt=true;"
-        "trustServerCertificate=false;"
-        "hostNameInCertificate=*.database.windows.net;"
-        "loginTimeout=30;"
-        );
-
-    if (!db.open()) {
-        std::cout << "Database connection failed: "
-                  << db.lastError().text().toStdString() << std::endl;
+    // Use the centralized Database class
+    QSqlDatabase &db = dbManager.getConnection();
+    if (!db.isOpen()) {
+        std::cout << "Database not open\n";
         return;
     }
 
@@ -197,16 +180,13 @@ void AssetTableModel::loadAssetsFromDatabase()
     QSqlQuery query(db);
     query.setForwardOnly(true);
 
-    if (!query.exec(
-            "SELECT AssetID, CategoryID, Tag, Name, Description, Location, OrginalCost FROM Asset_Table"))
-    {
+    if (!query.exec("SELECT AssetID, CategoryID, Tag, Name, Description, Location, OrginalCost FROM Asset_Table")) {
         std::cout << "Asset query failed: "
                   << query.lastError().text().toStdString() << std::endl;
         return;
     }
 
     while (query.next()) {
-        // Read fields from query
         int assetIdInt    = query.value(0).toInt();
         int categoryIdInt = query.value(1).isNull() ? 0 : query.value(1).toInt();
 
@@ -217,16 +197,11 @@ void AssetTableModel::loadAssetsFromDatabase()
         string orginnalCost = query.value(6).isNull() ? "" : query.value(6).toString().toStdString();
 
         string assetIdStr = std::to_string(assetIdInt);
-
-        // Translate CategoryID to Category Name
         string categoryName = categoryMap.count(categoryIdInt) ? categoryMap[categoryIdInt] : "N/A";
 
-        // Create Asset object and add to the model
         Asset asset(assetIdStr, categoryName, name, tag, description, location, orginnalCost);
         addAsset(asset);
     }
-
-    db.close();
 }
 
 

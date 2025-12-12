@@ -4,14 +4,16 @@
 #include <QAbstractTableModel>
 #include <vector>
 #include "asset.h"
+#include "database.h" // Include the Database class
 
 class AssetTableModel : public QAbstractTableModel
 {
     Q_OBJECT
 
 private:
-    std::vector<Asset> assets;     // stores Asset objects
-    void createAssets();           // helper function to create a few default assets
+    std::vector<Asset> assets;     // Stores Asset objects
+    void createAssets();            // Helper function (if needed)
+    Database dbManager;             // Database manager
 
 public:
     explicit AssetTableModel(QObject *parent = nullptr);
@@ -24,13 +26,11 @@ public:
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
     // Modifiers
-    void addAsset(const Asset &asset);   // add a new asset
-    void deleteAsset(int index);         // delete an asset by row index
-    void loadAssetsFromDatabase();  // Load assets from SQL into the model
-    Asset getAsset(int row) const; // used for the displaydescription function so it can display the full descirption by returning its asset row
-    void setModelData(std::vector<Asset> updatedAssets); //Updates the table with the new filtered vector
-
+    void addAsset(const Asset &asset);
+    void deleteAsset(int index);
+    void loadAssetsFromDatabase();
+    Asset getAsset(int row) const;
+    void setModelData(std::vector<Asset> updatedAssets);
 };
 
 #endif // ASSETTABLEMODEL_H
-
