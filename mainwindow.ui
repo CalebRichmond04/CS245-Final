@@ -44,6 +44,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Filters:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QComboBox" name="categoryBox">
           <property name="maximumSize">
            <size>

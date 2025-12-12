@@ -1,7 +1,10 @@
 #include "addassetwindow.h"
 #include "ui_addassetwindow.h"
+#include "database.h"
+#include <QtSql/QSqlQuery>
+#include <QtSql/QSqlError>
+#include <iostream>
 #include <QMessageBox>
-
 
 
 AddAssetWindow::AddAssetWindow(QWidget *parent) :
@@ -10,8 +13,8 @@ AddAssetWindow::AddAssetWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    // Connect the AddButton to accept the dialog
-    connect(ui->AddButton, &QPushButton::clicked, this, &AddAssetWindow::accept);
+    // Load category names and IDs from the database into the drop down
+    populateCategoryBox();
 }
 
 AddAssetWindow::~AddAssetWindow()
@@ -19,52 +22,78 @@ AddAssetWindow::~AddAssetWindow()
     delete ui;
 }
 
-// Getters
 
-//this will be used as a drop down for the user to add the category to the asset
-//make sure when adding the asset it adds it as a int for the category ID
-void AddAssetWindow::on_categoryBox_activated(int index)
+
+// Populates the category drop down with database category names and stores them in a map
+void AddAssetWindow::populateCategoryBox()
 {
+    ui->categoryBox->clear();     // Remove previous items
+    categoryMap.clear();          // Clear stored category map
 
-}
-
-//this is temp code it will need to retreive it from the database or vector
-//this increments by 1 and starts at 1 so if we can get the vector length and incremnt the Id by 1 then that would work maybe
-//cant be empty
-string AddAssetWindow::getAssetId() const
-{
-    return ui->NameData->text().toStdString();
-}
-
-//this is temp code it will need to retreive it from the two dbs or vector
-//categories are stored as ints starting at 1
-//maybe change this so it will get category name instead
-string AddAssetWindow::getCategoryId() const
-{
-    return ui->NameData->text().toStdString();
-}
+    Database dbManager;
+    QSqlDatabase &db = dbManager.getConnection();
 
 
-//Name cant be empty try might be the best method or other means
-string AddAssetWindow::getName() const
-{
-    try
-    {
-        if (ui->NameData->text().toStdString() != "")
-        {
+    if (!db.isOpen()) {
+        std::cerr << "Database connection failed\n";
+        return;
+    }
 
-        return ui->NameData->text().toStdString();
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
 
+    // Query all categories from the Category_Table
+    if (!query.exec("SELECT CategoryID, Name FROM Category_Table")) {
+        std::cerr << "Category query failed: "
+                  << query.lastError().text().toStdString() << std::endl;
+        return;
+    }
+
+    // Add each category to the combo box and store its ID in the map
+    while (query.next()) {
+        int id = query.value(0).toInt();
+        string name = query.value(1).toString().toStdString();
+
+        if (!name.empty()) {
+            ui->categoryBox->addItem(QString::fromStdString(name));
+            categoryMap[name] = id;   // store mapping for later use in getter
         }
     }
-    catch (...)
-    {
-
-    }
-
 }
 
-//tag cant be empty will work the same as the name just for tag
+
+
+// Getters
+
+string AddAssetWindow::getAssetId() const
+{
+    return "-1";
+    //This is temporary as i didint want to change the other code to delete this one function
+    //so when the asset data is pulled back into the mainwindow, we can skip getAssetID
+    //when we add the query to insert the new asset we dont add the assetID because its autoincremental
+}
+
+
+// Returns the selected category ID as a string so it can be added to the db without conflicts
+// Uses the categoryMap built during populateCategoryBox()
+string AddAssetWindow::getCategoryId() const
+{
+    string selectedName = ui->categoryBox->currentText().toStdString();
+    auto it = categoryMap.find(selectedName);
+
+    if (it != categoryMap.end())
+        return std::to_string(it->second);
+
+    // fallback was required it should never occur cause our categories are preset
+    return "NULL";
+}
+
+
+string AddAssetWindow::getName() const
+{
+    return ui->NameData->text().toStdString();
+}
+
 string AddAssetWindow::getTag() const
 {
     return ui->TagData->text().toStdString();
@@ -85,8 +114,21 @@ string AddAssetWindow::getOriginalCost() const
     return ui->OriginalCostData->text().toStdString();
 }
 
-//NEED TO ADD A CHECK TO MAKE SURE THAT THE REQUIRED FIELDS ARE THERE BEFORE UPLOADING THEM TO THE DATABSE
 
-//THIS CODE WILL CHNAGE WITH TRACY CODE IMPLEMNTATION ALONG WITH THE MAINWINDOW.CPP FILE
-//MAINWINDOW>CPP FILE WILL CHANGE SLIGHTYLY TO ACCOMIDATE THE DATABSE INTAGRAION
 
+// Ensures Name and Tag fields are filled in before adding the asset
+// These fields are required by the SQL database
+void AddAssetWindow::on_AddButton_clicked()
+{
+    QString name = ui->NameData->text();
+    QString tag  = ui->TagData->text();
+
+    // Reject submission if name and tag fields are empty
+    if (name.isEmpty() || tag.isEmpty()) {
+        QMessageBox::warning(this, "Input Error:", "Please fill in all required fields (Name and Tag)");
+        return;
+    }
+
+    // Fields are filled in so it can pass information
+    accept();
+}

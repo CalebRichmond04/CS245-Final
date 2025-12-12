@@ -4,6 +4,9 @@
 #include <QDialog>
 #include <string>
 using std::string;
+#include <map>
+using std::map;
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class AddAssetWindow; }
@@ -17,7 +20,7 @@ public:
     explicit AddAssetWindow(QWidget *parent = nullptr);
     ~AddAssetWindow();
 
-    // Getters to retrieve data from the dialog as std::string
+    // Getters to retrieve data from the dialog
     string getAssetId() const;
     string getCategoryId() const;
     string getName() const;
@@ -26,11 +29,19 @@ public:
     string getLocation() const;
     string getOriginalCost() const;
 
+    // Populates the category drop down with database category names
+    void populateCategoryBox();
+
 private slots:
-    void on_categoryBox_activated(int index);
+
+    void on_AddButton_clicked(); // now validates required fields before accepting
 
 private:
     Ui::AddAssetWindow *ui;
+
+    map<std::string,int> categoryMap;  // Map category name -> ID;
+
+
 };
 
 #endif // ADDASSETWINDOW_H

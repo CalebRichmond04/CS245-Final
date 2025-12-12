@@ -74,7 +74,7 @@
            </font>
           </property>
           <property name="text">
-           <string>Name:</string>
+           <string>(Required) Name:</string>
           </property>
          </widget>
         </item>
@@ -89,7 +89,7 @@
            </font>
           </property>
           <property name="text">
-           <string>Tag:</string>
+           <string>(Required) Tag:</string>
           </property>
          </widget>
         </item>

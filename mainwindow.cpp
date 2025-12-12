@@ -49,7 +49,8 @@ MainWindow::~MainWindow()
 }
 
 /*
- * Add Asset button clicked
+ * Add Asset button clicked needs to connect to the database and somehow update the table prob could call the loadAssetsFromDatabase()
+ * From the assettablemodel.cpp
  */
 void MainWindow::on_addAssetButton_clicked()
 {
@@ -58,20 +59,15 @@ void MainWindow::on_addAssetButton_clicked()
 
     if(dialog.exec() == QDialog::Accepted)
     {
-        // Create a new Asset object from the dialog input
-        Asset newAsset(
-            dialog.getAssetId(),
-            dialog.getCategoryId(),
-            dialog.getName(),
-            dialog.getTag(),
-            dialog.getDescription(),
-            dialog.getLocation(),
-            dialog.getOriginalCost()
-            );
-
-        // Add it to the table model
-        model->addAsset(newAsset);
+        // Get user input from dialog
+        string categoryId = dialog.getCategoryId();
+        string name = dialog.getName();
+        string tag = dialog.getTag();
+        string description = dialog.getDescription();
+        string location = dialog.getLocation();
+        string originalCost = dialog.getOriginalCost();
     }
+
 }
 
 /*
