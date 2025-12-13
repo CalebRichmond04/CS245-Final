@@ -7,14 +7,19 @@
 #include <QMessageBox>
 
 
+
+/*
+ *The new dialog window that allows the user to enter asset information
+ *then pass the information so it can be add to db
+ */
+
+
 AddAssetWindow::AddAssetWindow(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AddAssetWindow)
 {
     ui->setupUi(this);
 
-    // Load category names and IDs from the database into the drop down
-    populateCategoryBox();
 }
 
 AddAssetWindow::~AddAssetWindow()
@@ -30,16 +35,22 @@ void AddAssetWindow::populateCategoryBox()
     ui->categoryBox->clear();     // Remove previous items
     categoryMap.clear();          // Clear stored category map
 
-    Database dbManager;
-    QSqlDatabase &db = dbManager.getConnection();
+    // Ensure database pointer is valid and open
+    if (!db || !db->isOpen()) {
+        std::cerr << "Database connection not available\n";
+
+        /*
+         * NOTE: This message may appear in the console
+         * This will appear because of the integration of the database.cpp
+         *
+         */
 
 
-    if (!db.isOpen()) {
-        std::cerr << "Database connection failed\n";
+
         return;
     }
 
-    QSqlQuery query(db);
+    QSqlQuery query(*db);
     query.setForwardOnly(true);
 
     // Query all categories from the Category_Table
@@ -109,11 +120,11 @@ string AddAssetWindow::getLocation() const
     return ui->LocationData->text().toStdString();
 }
 
-string AddAssetWindow::getOriginalCost() const
-{
-    return ui->OriginalCostData->text().toStdString();
-}
 
+double AddAssetWindow::getOriginalCost() const
+{
+    return ui->OriginalCostData->text().toDouble();
+}
 
 
 // Ensures Name and Tag fields are filled in before adding the asset
@@ -122,6 +133,7 @@ void AddAssetWindow::on_AddButton_clicked()
 {
     QString name = ui->NameData->text();
     QString tag  = ui->TagData->text();
+    QString oringalCost = ui->OriginalCostData->text();
 
     // Reject submission if name and tag fields are empty
     if (name.isEmpty() || tag.isEmpty()) {
@@ -129,6 +141,26 @@ void AddAssetWindow::on_AddButton_clicked()
         return;
     }
 
+    // Reject submission if OriginalCost is not a valid double
+    // Only validate if the field is not empty
+    if (!oringalCost.isEmpty())
+    {
+        bool ok = false;
+        oringalCost.toDouble(&ok);  // Converts string to double and sets ok = true if conversion succeeds
+        if (!ok)
+        {
+            QMessageBox::warning(this, "Input Error:", "Original Cost must be a valid number");
+            return; // Stop here if it's invalid
+        }
+    }
+
     // Fields are filled in so it can pass information
     accept();
+}
+
+
+// Setter for database pointer so it can use the Database connection
+void AddAssetWindow::setDatabase(QSqlDatabase *database)
+{
+    this->db = database;  // Store pointer for use in populateCategoryBox
 }

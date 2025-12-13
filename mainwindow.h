@@ -2,8 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "assettablemodel.h"  // Include your asset table model
-#include <QItemSelection>     // For selection handling
+#include "assettablemodel.h"
+#include <QItemSelection>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -26,13 +26,13 @@ private slots:
                                const QItemSelection &deselected); // Enable/disable delete button
     void on_categoryBox_activated(int index); // Category selection change
 
-    void showFullDescription(const QModelIndex &index);; //Show a popup dialog with the full description or location text
-    void populateCategoryBox(); // Populates the category dropdown from the database
+    void showFullDescription(const QModelIndex &index);; //Show a popup dialog for full description
+    void populateCategoryBox(); // Populate the category dropdown from the database
 
 
 private:
     Ui::MainWindow *ui;
-    AssetTableModel *model; // Model for the asset table
+    AssetTableModel *model;
     Database dbManager;     // manage DB connection
 
 

@@ -9,6 +9,15 @@
 using std::vector;
 using std::string;
 
+
+
+/*
+ * used for the qt table this stores and lists the assets from the database
+ *
+ */
+
+
+
 // Constructor
 AssetTableModel::AssetTableModel(QObject *parent)
     : QAbstractTableModel(parent)
@@ -82,6 +91,7 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
         case 6:
         {
             // Format original cost with $ and two decimals
+            // Convert string to double
             double cost = QString::fromStdString(assets[row].getOriginalCost()).toDouble();
             return QString("$%1").arg(cost, 0, 'f', 2);
         }
@@ -99,6 +109,7 @@ bool AssetTableModel::setData(const QModelIndex &idx, const QVariant &value, int
 {
     if (role == Qt::EditRole)
     {
+        // Notify that all data has potentially changed
         emit dataChanged(index(0,0), index(rowCount()-1, columnCount()-1));
         emit layoutChanged();
         return true;
@@ -160,7 +171,7 @@ void AssetTableModel::loadAssetsFromDatabase()
         return;
     }
 
-    // Load categories into a map
+    // Load categories into a map for quick lookup by CategoryID
     std::map<int, string> categoryMap;
     QSqlQuery CategoryQuery(db);
     CategoryQuery.setForwardOnly(true);
@@ -169,7 +180,7 @@ void AssetTableModel::loadAssetsFromDatabase()
         while (CategoryQuery.next()) {
             int id = CategoryQuery.value(0).toInt();
             string name = CategoryQuery.value(1).toString().toStdString();
-            categoryMap[id] = name;
+            categoryMap[id] = name;  // Map ID -> Name
         }
     } else {
         std::cout << "Category query failed: "
@@ -197,10 +208,11 @@ void AssetTableModel::loadAssetsFromDatabase()
         string orginnalCost = query.value(6).isNull() ? "" : query.value(6).toString().toStdString();
 
         string assetIdStr = std::to_string(assetIdInt);
+        // Lookup category name by ID "N/A" if not found (wont need too but had to include it in case)
         string categoryName = categoryMap.count(categoryIdInt) ? categoryMap[categoryIdInt] : "N/A";
 
         Asset asset(assetIdStr, categoryName, name, tag, description, location, orginnalCost);
-        addAsset(asset);
+        addAsset(asset);  // Add to model
     }
 }
 
@@ -220,5 +232,5 @@ void AssetTableModel::setModelData(std::vector<Asset> updatedAssets)
     }
 
     // Refresh the view
-    this->setData(this->index(0,0), 0);
+    this->setData(this->index(0,0), 0);  // triggers dataChanged to redraw table
 }

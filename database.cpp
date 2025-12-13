@@ -8,15 +8,19 @@
  * error message box if it cannot connect
  */
 Database::Database() {
-    // Check if connection already exists (had to look this up had erorrs on multiple sql default connections when i integrated this file
+    // Check if connection already exists
+    // Prevents multiple default connection errors when integrating this file
     if (QSqlDatabase::contains("AssetManagerConnection"))
     {
+        // Reuse existing connection
         db = QSqlDatabase::database("AssetManagerConnection");
     }
     else
     {
+        // Create a new ODBC connection with a unique name
         db = QSqlDatabase::addDatabase("QODBC", "AssetManagerConnection");
 
+        // Set up connection string with SQL Server credentials
         db.setDatabaseName(
             "DRIVER={SQL Server};"
             "Server=itassetmanagerserver.database.windows.net;"
@@ -30,8 +34,10 @@ Database::Database() {
             "loginTimeout=30;"
             );
 
+        // Attempt to open the database
         if (!db.open())
         {
+            // Show error if connection fails
             QMessageBox::critical(nullptr, "Error", "Failed to connect to the database");
         }
     }
@@ -40,13 +46,14 @@ Database::Database() {
 // Destructor
 Database::~Database()
 {
+    // Close the database connection if open
     if(db.isOpen())
     {
         db.close();
     }
 }
 
-// Returns reference
+// Returns reference to the centralized database connection
 QSqlDatabase& Database::getConnection()
 {
     return db;

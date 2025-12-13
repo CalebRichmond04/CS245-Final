@@ -2,6 +2,7 @@
 #define ADDASSETWINDOW_H
 
 #include <QDialog>
+#include <qsqldatabase.h>
 #include <string>
 using std::string;
 #include <map>
@@ -27,10 +28,13 @@ public:
     string getTag() const;
     string getDescription() const;
     string getLocation() const;
-    string getOriginalCost() const;
+    double getOriginalCost() const;
 
     // Populates the category drop down with database category names
     void populateCategoryBox();
+
+    void setDatabase(QSqlDatabase *database); // setter to pass db from MainWindow
+
 
 private slots:
 
@@ -40,6 +44,8 @@ private:
     Ui::AddAssetWindow *ui;
 
     map<std::string,int> categoryMap;  // Map category name -> ID;
+
+    QSqlDatabase *db = nullptr;            // pointer to existing database
 
 
 };

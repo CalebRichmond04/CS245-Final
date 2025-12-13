@@ -10,6 +10,15 @@
 
 using std::string;
 
+
+/*
+ *main code that uses all the other code files to show the assets filter add and delete assets, display assets
+ *basicly manages the interactions from the user to be used in the code files
+ *
+ *YOU CAN DOUBLE CLICK DESCRIPTION OF A ASSET AND IT WILL OPEN A WINDOW TO DISPLAY THE FULL TEXT
+ */
+
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -29,13 +38,13 @@ MainWindow::MainWindow(QWidget *parent) :
     // Resize the columns to fit their contents
     ui->assetTable->resizeColumnsToContents();
 
-    // Set the table view to enable/disable the delete button
+    // Set the table view to enable/disable the delete button based on selection
     connect(ui->assetTable->selectionModel(),
             &QItemSelectionModel::selectionChanged,
             this,
             &MainWindow::enableDropAssetButton);
 
-    // Connect to show full description when double clicked
+    // Connect to show full description when Description column is double clicked
     connect(ui->assetTable, &QTableView::doubleClicked, this, &MainWindow::showFullDescription);
 
     // Populate the category combo box
@@ -44,30 +53,76 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
-    delete model;
-    delete ui;
+    delete model; // Clean up model
+    delete ui;    // Clean up UI
 }
 
 /*
- * Add Asset button clicked needs to connect to the database and somehow update the table prob could call the loadAssetsFromDatabase()
- * From the assettablemodel.cpp
+ * Add Asset button clicked
+ * Opens the AddAssetWindow dialog and inserts new asset into database
  */
 void MainWindow::on_addAssetButton_clicked()
 {
+    // Reuse the EXISTING database connection
+    QSqlDatabase &db = dbManager.getConnection();
+
+    // Ensure the database connection is open BEFORE showing the dialog
+    if (!db.isOpen()) {
+        QMessageBox::critical(this, "Database Error", "Failed to connect to database");
+        return;
+    }
+
     AddAssetWindow dialog(this);
+
+    // Pass the database connection to the dialog
+    dialog.setDatabase(&db);
+
+    // Populate the category drop down now that the database is set
+    dialog.populateCategoryBox();
+
     dialog.setModal(true);
 
     if(dialog.exec() == QDialog::Accepted)
     {
-        // Get user input from dialog
-        string categoryId = dialog.getCategoryId();
-        string name = dialog.getName();
-        string tag = dialog.getTag();
-        string description = dialog.getDescription();
-        string location = dialog.getLocation();
-        string originalCost = dialog.getOriginalCost();
-    }
+        // Retrieve user input from the dialog or drop down
+        int categoryId   = std::stoi(dialog.getCategoryId()); // convert categoryId to int to fix SQL type
+        string name         = dialog.getName();
+        string tag          = dialog.getTag();
+        string description  = dialog.getDescription();
+        string location     = dialog.getLocation();
+        double originalCost = dialog.getOriginalCost();
 
+        // SQL INSERT statements
+        QSqlQuery query(db);
+        query.prepare(
+            "INSERT INTO Asset_Table "
+            "(CategoryID, Name, Tag, Description, Location, OrginalCost) "
+            "VALUES "
+            "(:categoryId, :name, :tag, :description, :location, :originalCost)"
+            );
+
+        // Bind user input to the SQL parameters
+        query.bindValue(":categoryId", categoryId);
+        query.bindValue(":name", QString::fromStdString(name));
+        query.bindValue(":tag", QString::fromStdString(tag));
+        query.bindValue(":description", QString::fromStdString(description));
+        query.bindValue(":location", QString::fromStdString(location));
+        query.bindValue(":originalCost", originalCost);
+
+        // Execute INSERT query
+        if (!query.exec()) {
+            // Insert failed, show error message
+            QMessageBox::critical(
+                this,
+                "Database Error",
+                "Failed to insert asset: " + query.lastError().text()
+                );
+            return;
+        }
+
+        // Reload assets from the database so the table updates
+        model->loadAssetsFromDatabase();
+    }
 }
 
 /*
@@ -130,9 +185,8 @@ void MainWindow::enableDropAssetButton(const QItemSelection &selected,
     ui->deleteAssetButton->setEnabled(enabled);
 }
 
-
 /*
- * This code populates the category drop down with the database category names
+ * Populates the category drop down with database category names
  */
 void MainWindow::populateCategoryBox()
 {
@@ -142,7 +196,7 @@ void MainWindow::populateCategoryBox()
     ui->categoryBox->addItem("All");
 
     // Use centralized Database class instead of creating a new connection
-    QSqlDatabase &db = dbManager.getConnection(); // dbManager is a member of MainWindow
+    QSqlDatabase &db = dbManager.getConnection();
     if (!db.isOpen()) {
         std::cerr << "Database connection failed\n";
         return;
@@ -168,11 +222,6 @@ void MainWindow::populateCategoryBox()
 
     // No need to close the database: Database class manages the connection
 }
-
-
-
-
-
 
 /*
  * Calls the DB to get the most recent assets, then filters them based on the selected category
